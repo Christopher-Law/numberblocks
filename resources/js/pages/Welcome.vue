@@ -286,9 +286,9 @@ onMounted(async () => {
                     <p class="mt-1 font-mono text-sm text-slate-200">{{ currentExpressionPreview }}</p>
                 </div>
 
-                <div v-if="currentResult !== null" class="mt-4 rounded-md border border-emerald-700/40 bg-emerald-900/20 p-4" role="status" aria-live="polite">
+                <div v-if="currentResult !== null" class="mt-4 min-w-0 rounded-md border border-emerald-700/40 bg-emerald-900/20 p-4" role="status" aria-live="polite">
                     <p class="text-xs uppercase tracking-wide text-emerald-400">Result</p>
-                    <p class="mt-1 text-xl font-semibold text-emerald-300">{{ currentResult }}</p>
+                    <p class="mt-1 break-all text-xl font-semibold text-emerald-300">{{ currentResult }}</p>
                 </div>
 
                 <div v-if="errorMessage" class="mt-4 rounded-md border border-rose-700/40 bg-rose-900/20 p-4 text-sm text-rose-300" role="alert" aria-live="assertive">
@@ -315,13 +315,13 @@ onMounted(async () => {
                     <li
                         v-for="item in calculations"
                         :key="item.id"
-                        class="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950 px-3 py-2"
+                        class="flex items-start justify-between gap-3 rounded-md border border-slate-800 bg-slate-950 px-3 py-2"
                     >
-                        <div>
-                            <p class="font-mono text-sm text-slate-200">{{ formatTickerItem(item) }}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-mono text-sm text-slate-200 break-all">{{ formatTickerItem(item) }}</p>
                             <p class="text-xs text-slate-500">{{ formatCalculationDate(item.created_at) }}</p>
                         </div>
-                        <button class="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" @click="deleteCalculation(item.id)">
+                        <button class="shrink-0 rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" @click="deleteCalculation(item.id)">
                             Delete
                         </button>
                     </li>
