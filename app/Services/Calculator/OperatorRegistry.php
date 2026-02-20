@@ -2,6 +2,8 @@
 
 namespace App\Services\Calculator;
 
+use Illuminate\Support\Arr;
+
 class OperatorRegistry
 {
     /**
@@ -20,7 +22,7 @@ class OperatorRegistry
 
     public function supports(string $operator): bool
     {
-        return array_key_exists($operator, $this->all());
+        return Arr::exists($this->all(), $operator);
     }
 
     public function precedence(string $operator): int

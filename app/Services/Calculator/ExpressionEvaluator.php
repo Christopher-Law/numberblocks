@@ -3,6 +3,8 @@
 namespace App\Services\Calculator;
 
 use App\Exceptions\InvalidCalculationExpressionException;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class ExpressionEvaluator
@@ -27,7 +29,7 @@ class ExpressionEvaluator
     protected function tokenize(string $expression): array
     {
         $tokens = [];
-        $length = strlen($expression);
+        $length = Str::length($expression);
         $index = 0;
 
         while ($index < $length) {
@@ -49,7 +51,7 @@ class ExpressionEvaluator
 
             if (ctype_alpha($character)) {
                 [$function, $nextIndex] = $this->consumeWord($expression, $index);
-                $tokens[] = ['type' => 'function', 'value' => strtolower($function)];
+                $tokens[] = ['type' => 'function', 'value' => Str::lower($function)];
                 $index = $nextIndex;
 
                 continue;
@@ -99,7 +101,7 @@ class ExpressionEvaluator
             throw InvalidCalculationExpressionException::withMessage("Unsupported token [{$character}] in expression.");
         }
 
-        if ($tokens === []) {
+        if (blank($tokens)) {
             throw InvalidCalculationExpressionException::withMessage('Expression cannot be empty.');
         }
 
@@ -133,7 +135,7 @@ class ExpressionEvaluator
             }
 
             if ($token['type'] === 'comma') {
-                while ($stack !== [] && end($stack)['type'] !== 'lparen') {
+                while ($stack !== [] && Arr::last($stack)['type'] !== 'lparen') {
                     $output[] = array_pop($stack);
                 }
 
@@ -146,7 +148,7 @@ class ExpressionEvaluator
 
             if ($token['type'] === 'operator') {
                 while ($stack !== []) {
-                    $top = end($stack);
+                    $top = Arr::last($stack);
 
                     if (! is_array($top) || ! isset($top['type'], $top['value'])) {
                         break;
@@ -188,7 +190,7 @@ class ExpressionEvaluator
             }
 
             if ($token['type'] === 'rparen') {
-                while ($stack !== [] && end($stack)['type'] !== 'lparen') {
+                while ($stack !== [] && Arr::last($stack)['type'] !== 'lparen') {
                     $output[] = array_pop($stack);
                 }
 
@@ -198,7 +200,7 @@ class ExpressionEvaluator
 
                 array_pop($stack);
 
-                if ($stack !== [] && end($stack)['type'] === 'function') {
+                if ($stack !== [] && Arr::last($stack)['type'] === 'function') {
                     $output[] = array_pop($stack);
                 }
             }
@@ -276,7 +278,7 @@ class ExpressionEvaluator
     {
         $number = '';
         $index = $start;
-        $length = strlen($expression);
+        $length = Str::length($expression);
         $dotCount = 0;
 
         while ($index < $length) {
@@ -310,7 +312,7 @@ class ExpressionEvaluator
     {
         $word = '';
         $index = $start;
-        $length = strlen($expression);
+        $length = Str::length($expression);
 
         while ($index < $length && ctype_alpha($expression[$index])) {
             $word .= $expression[$index];
@@ -325,18 +327,21 @@ class ExpressionEvaluator
      */
     protected function isUnaryMinusContext(array $tokens): bool
     {
-        if ($tokens === []) {
+        if (blank($tokens)) {
             return true;
         }
 
-        $previousType = $tokens[count($tokens) - 1]['type'];
+        $previousToken = Arr::last($tokens);
+        if (! is_array($previousToken) || ! isset($previousToken['type'])) {
+            return true;
+        }
 
-        return in_array($previousType, ['operator', 'lparen', 'comma'], true);
+        return in_array($previousToken['type'], ['operator', 'lparen', 'comma'], true);
     }
 
     protected function peekNextNonSpace(string $expression, int $start): ?string
     {
-        $length = strlen($expression);
+        $length = Str::length($expression);
         $index = $start;
 
         while ($index < $length) {

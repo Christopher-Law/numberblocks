@@ -2,6 +2,8 @@
 
 namespace App\Services\Calculator;
 
+use Illuminate\Support\Str;
+
 class HighPrecisionMath
 {
     public function __construct(
@@ -80,8 +82,9 @@ class HighPrecisionMath
 
     public function normalize(string $value): string
     {
-        $normalized = trim($value);
-        if (str_contains($normalized, '.')) {
+        $normalized = Str::of($value)->trim()->toString();
+
+        if (Str::contains($normalized, '.')) {
             $normalized = rtrim($normalized, '0');
             $normalized = rtrim($normalized, '.');
         }

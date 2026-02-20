@@ -2,6 +2,9 @@
 
 namespace App\Services\Calculator;
 
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+
 class FunctionRegistry
 {
     /**
@@ -16,17 +19,17 @@ class FunctionRegistry
 
     public function supports(string $function): bool
     {
-        return array_key_exists(strtolower($function), $this->all());
+        return Arr::exists($this->all(), Str::lower($function));
     }
 
     public function arity(string $function): int
     {
-        return $this->all()[strtolower($function)] ?? 0;
+        return $this->all()[Str::lower($function)] ?? 0;
     }
 
     public function apply(string $function, string $argument, HighPrecisionMath $math): string
     {
-        return match (strtolower($function)) {
+        return match (Str::lower($function)) {
             'sqrt' => $math->sqrt($argument),
             default => throw new \InvalidArgumentException("Unsupported function [{$function}]."),
         };
