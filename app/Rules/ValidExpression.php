@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Rules;
+
+use Closure;
+use Illuminate\Contracts\Validation\ValidationRule;
+
+class ValidExpression implements ValidationRule
+{
+    /**
+     * Run the validation rule.
+     *
+     * @param  \Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     */
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (! is_string($value)) {
+            $fail('Expression must be a string.');
+
+            return;
+        }
+
+        $expression = trim($value);
+
+        if ($expression === '') {
+            $fail('Expression cannot be empty.');
+
+            return;
+        }
+
+        if (! preg_match('/^[0-9+\-*\/^().,\sA-Za-z]+$/', $expression)) {
+            $fail('Expression contains unsupported characters.');
+
+            return;
+        }
+
+        preg_match_all('/[A-Za-z_]+/', $expression, $matches);
+        $functions = $matches[0] ?? [];
+
+        foreach ($functions as $function) {
+            if (strtolower($function) !== 'sqrt') {
+                $fail('Only sqrt() is supported for named functions.');
+
+                return;
+            }
+        }
+
+        $balance = 0;
+        foreach (str_split($expression) as $character) {
+            if ($character === '(') {
+                $balance++;
+            }
+
+            if ($character === ')') {
+                $balance--;
+            }
+
+            if ($balance < 0) {
+                $fail('Expression has unbalanced parentheses.');
+
+                return;
+            }
+        }
+
+        if ($balance !== 0) {
+            $fail('Expression has unbalanced parentheses.');
+
+            return;
+        }
+
+        if (preg_match('/sqrt\s*\(\s*-\s*[0-9.]+\s*\)/i', $expression)) {
+            $fail('Square root of a negative number is not supported.');
+        }
+    }
+}
