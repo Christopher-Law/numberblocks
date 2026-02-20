@@ -1,10 +1,13 @@
 <?php
 
+use App\Exceptions\InvalidCalculationExpressionException;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,5 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (InvalidCalculationExpressionException $exception, Request $request): JsonResponse {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        });
     })->create();

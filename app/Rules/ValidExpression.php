@@ -35,17 +35,6 @@ class ValidExpression implements ValidationRule
             return;
         }
 
-        preg_match_all('/[A-Za-z_]+/', $expression, $matches);
-        $functions = $matches[0] ?? [];
-
-        foreach ($functions as $function) {
-            if (Str::lower($function) !== 'sqrt') {
-                $fail('Only sqrt() is supported for named functions.');
-
-                return;
-            }
-        }
-
         $balance = 0;
         foreach (str_split($expression) as $character) {
             if ($character === '(') {

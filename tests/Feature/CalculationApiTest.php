@@ -12,7 +12,6 @@ it('creates a simple calculation and persists it', function () {
 
     $response
         ->assertCreated()
-        ->assertJsonPath('success', true)
         ->assertJsonPath('data.mode', 'simple')
         ->assertJsonPath('data.result', '12.75');
 
@@ -32,7 +31,6 @@ it('creates an expression calculation', function () {
 
     $response
         ->assertCreated()
-        ->assertJsonPath('success', true)
         ->assertJsonPath('data.mode', 'expression')
         ->assertJsonPath('data.expression', 'sqrt(81)^2')
         ->assertJsonPath('data.result', '81');
@@ -63,7 +61,6 @@ it('lists ticker tape history with newest first', function () {
 
     $response
         ->assertSuccessful()
-        ->assertJsonPath('success', true)
         ->assertJsonPath('data.0.expression', '2^3')
         ->assertJsonPath('data.1.operator', '+');
 });
@@ -82,7 +79,7 @@ it('deletes a single calculation record', function () {
 
     $response
         ->assertSuccessful()
-        ->assertJsonPath('success', true);
+        ->assertJsonPath('message', 'Calculation deleted successfully.');
 
     $this->assertDatabaseMissing('calculations', [
         'id' => $calculation->id,
@@ -110,8 +107,8 @@ it('clears all calculation history', function () {
 
     $response
         ->assertSuccessful()
-        ->assertJsonPath('success', true)
-        ->assertJsonPath('data.deleted_count', 2);
+        ->assertJsonPath('deleted_count', 2)
+        ->assertJsonPath('message', 'Calculation history cleared successfully.');
 
     expect(Calculation::query()->count())->toBe(0);
 });
