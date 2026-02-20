@@ -22,6 +22,11 @@ interface ApiSuccess<T> {
     data: T;
 }
 
+interface ApiRequestResult<T> {
+    response: Response | null;
+    payload: ApiSuccess<T> | null;
+}
+
 const mode = ref<CalculationMode>('simple');
 const left = ref<string>('');
 const operator = ref<Operator>('+');
@@ -48,10 +53,63 @@ const canSubmit = computed(() => {
     return left.value.trim() !== '' && right.value.trim() !== '';
 });
 
+async function requestJson<T>(url: string, init?: RequestInit): Promise<ApiRequestResult<T>> {
+    try {
+        const response = await fetch(url, init);
+        const payload: ApiSuccess<T> | null = await response.json().catch(() => null);
+
+        return { response, payload };
+    } catch {
+        return { response: null, payload: null };
+    }
+}
+
+function resolveApiError(
+    response: Response | null,
+    payload: ApiSuccess<unknown> | null,
+    fallbackMessage: string,
+): string | null {
+    if (response === null) {
+        return fallbackMessage;
+    }
+
+    if (!response.ok || payload?.success === false) {
+        return payload?.message ?? fallbackMessage;
+    }
+
+    return null;
+}
+
+function normalizeCalculationRecords(
+    payload: ApiSuccess<CalculationRecord[] | { data: CalculationRecord[] }> | null,
+): CalculationRecord[] {
+    if (payload === null) {
+        return [];
+    }
+
+    return Array.isArray(payload.data) ? payload.data : (payload.data?.data ?? []);
+}
+
+function normalizeCalculationRecord(payload: ApiSuccess<CalculationRecord | { data: CalculationRecord }> | null): CalculationRecord | null {
+    if (payload === null) {
+        return null;
+    }
+
+    return 'data' in payload.data ? payload.data.data : payload.data;
+}
+
 async function loadHistory(): Promise<void> {
-    const response = await fetch('/api/calculations');
-    const payload: ApiSuccess<CalculationRecord[] | { data: CalculationRecord[] }> = await response.json();
-    calculations.value = Array.isArray(payload.data) ? payload.data : (payload.data?.data ?? []);
+    const { response, payload } = await requestJson<CalculationRecord[] | { data: CalculationRecord[] }>('/api/calculations');
+    const loadError = resolveApiError(response, payload, 'Unable to load calculation history.');
+
+    if (loadError !== null) {
+        errorMessage.value = loadError;
+        calculations.value = [];
+
+        return;
+    }
+
+    calculations.value = normalizeCalculationRecords(payload);
 }
 
 async function submitCalculation(): Promise<void> {
@@ -67,41 +125,57 @@ async function submitCalculation(): Promise<void> {
             ? { expression: expression.value.trim() }
             : { left: left.value.trim(), operator: operator.value, right: right.value.trim() };
 
-    try {
-        const response = await fetch('/api/calculations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
+    const { response, payload } = await requestJson<CalculationRecord | { data: CalculationRecord }>('/api/calculations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
 
-        const payload = await response.json();
-        if (!response.ok || !payload.success) {
-            errorMessage.value = payload.message ?? 'Unable to perform the calculation.';
-            return;
-        }
-
-        const record: CalculationRecord = payload.data.data ?? payload.data;
-        currentResult.value = record.result;
-        calculations.value = [record, ...calculations.value];
-    } catch {
-        errorMessage.value = 'Unexpected error while contacting the API.';
-    } finally {
+    const submitError = resolveApiError(response, payload, 'Unable to perform the calculation.');
+    if (submitError !== null) {
+        errorMessage.value = submitError;
         loading.value = false;
+
+        return;
     }
+
+    const record = normalizeCalculationRecord(payload);
+    if (record === null) {
+        errorMessage.value = 'Unable to read the calculation result.';
+        loading.value = false;
+
+        return;
+    }
+
+    currentResult.value = record.result;
+    calculations.value = [record, ...calculations.value];
+    loading.value = false;
 }
 
 async function deleteCalculation(id: number): Promise<void> {
-    const response = await fetch(`/api/calculations/${id}`, { method: 'DELETE' });
-    if (response.ok) {
-        calculations.value = calculations.value.filter((item) => item.id !== id);
+    const { response, payload } = await requestJson<null>(`/api/calculations/${id}`, { method: 'DELETE' });
+    const deleteError = resolveApiError(response, payload, 'Unable to delete this calculation.');
+
+    if (deleteError !== null) {
+        errorMessage.value = deleteError;
+
+        return;
     }
+
+    calculations.value = calculations.value.filter((item) => item.id !== id);
 }
 
 async function clearHistory(): Promise<void> {
-    const response = await fetch('/api/calculations', { method: 'DELETE' });
-    if (response.ok) {
-        calculations.value = [];
+    const { response, payload } = await requestJson<null>('/api/calculations', { method: 'DELETE' });
+    const clearError = resolveApiError(response, payload, 'Unable to clear calculation history.');
+
+    if (clearError !== null) {
+        errorMessage.value = clearError;
+
+        return;
     }
+
+    calculations.value = [];
 }
 
 function formatTickerItem(item: CalculationRecord): string {
@@ -110,6 +184,10 @@ function formatTickerItem(item: CalculationRecord): string {
     }
 
     return `${item.left_operand} ${item.operator} ${item.right_operand} = ${item.result}`;
+}
+
+function formatCalculationDate(createdAt: string): string {
+    return new Date(createdAt).toLocaleString();
 }
 
 onMounted(async () => {
@@ -128,15 +206,19 @@ onMounted(async () => {
 
                 <div class="mt-6 inline-flex rounded-md border border-slate-700">
                     <button
+                        type="button"
                         class="px-4 py-2 text-sm"
                         :class="mode === 'simple' ? 'bg-slate-700 text-white' : 'bg-transparent text-slate-300'"
+                        :aria-pressed="mode === 'simple'"
                         @click="mode = 'simple'"
                     >
                         Simple
                     </button>
                     <button
+                        type="button"
                         class="px-4 py-2 text-sm"
                         :class="mode === 'expression' ? 'bg-slate-700 text-white' : 'bg-transparent text-slate-300'"
+                        :aria-pressed="mode === 'expression'"
                         @click="mode = 'expression'"
                     >
                         Expression
@@ -146,30 +228,43 @@ onMounted(async () => {
                 <form class="mt-6 space-y-4" @submit.prevent="submitCalculation">
                     <template v-if="mode === 'simple'">
                         <div class="grid grid-cols-3 gap-3">
-                            <input
-                                v-model="left"
-                                type="text"
-                                class="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-                                placeholder="Left operand"
-                            />
-                            <select v-model="operator" class="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm">
-                                <option value="+">+</option>
-                                <option value="-">-</option>
-                                <option value="*">*</option>
-                                <option value="/">/</option>
-                                <option value="^">^</option>
-                            </select>
-                            <input
-                                v-model="right"
-                                type="text"
-                                class="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-                                placeholder="Right operand"
-                            />
+                            <div>
+                                <label for="left-operand" class="mb-1 block text-xs text-slate-400">Left operand</label>
+                                <input
+                                    id="left-operand"
+                                    v-model="left"
+                                    type="text"
+                                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                                    placeholder="Left operand"
+                                />
+                            </div>
+                            <div>
+                                <label for="operator" class="mb-1 block text-xs text-slate-400">Operator</label>
+                                <select id="operator" v-model="operator" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm">
+                                    <option value="+">+</option>
+                                    <option value="-">-</option>
+                                    <option value="*">*</option>
+                                    <option value="/">/</option>
+                                    <option value="^">^</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="right-operand" class="mb-1 block text-xs text-slate-400">Right operand</label>
+                                <input
+                                    id="right-operand"
+                                    v-model="right"
+                                    type="text"
+                                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+                                    placeholder="Right operand"
+                                />
+                            </div>
                         </div>
                     </template>
 
                     <template v-else>
+                        <label for="expression" class="mb-1 block text-xs text-slate-400">Expression</label>
                         <textarea
+                            id="expression"
                             v-model="expression"
                             rows="3"
                             class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
@@ -191,12 +286,12 @@ onMounted(async () => {
                     <p class="mt-1 font-mono text-sm text-slate-200">{{ currentExpressionPreview }}</p>
                 </div>
 
-                <div v-if="currentResult !== null" class="mt-4 rounded-md border border-emerald-700/40 bg-emerald-900/20 p-4">
+                <div v-if="currentResult !== null" class="mt-4 rounded-md border border-emerald-700/40 bg-emerald-900/20 p-4" role="status" aria-live="polite">
                     <p class="text-xs uppercase tracking-wide text-emerald-400">Result</p>
                     <p class="mt-1 text-xl font-semibold text-emerald-300">{{ currentResult }}</p>
                 </div>
 
-                <div v-if="errorMessage" class="mt-4 rounded-md border border-rose-700/40 bg-rose-900/20 p-4 text-sm text-rose-300">
+                <div v-if="errorMessage" class="mt-4 rounded-md border border-rose-700/40 bg-rose-900/20 p-4 text-sm text-rose-300" role="alert" aria-live="assertive">
                     {{ errorMessage }}
                 </div>
             </section>
@@ -224,7 +319,7 @@ onMounted(async () => {
                     >
                         <div>
                             <p class="font-mono text-sm text-slate-200">{{ formatTickerItem(item) }}</p>
-                            <p class="text-xs text-slate-500">{{ new Date(item.created_at).toLocaleString() }}</p>
+                            <p class="text-xs text-slate-500">{{ formatCalculationDate(item.created_at) }}</p>
                         </div>
                         <button class="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" @click="deleteCalculation(item.id)">
                             Delete
