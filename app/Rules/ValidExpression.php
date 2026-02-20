@@ -4,6 +4,7 @@ namespace App\Rules;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Str;
 
 class ValidExpression implements ValidationRule
 {
@@ -20,9 +21,9 @@ class ValidExpression implements ValidationRule
             return;
         }
 
-        $expression = trim($value);
+        $expression = Str::of($value)->trim()->toString();
 
-        if ($expression === '') {
+        if (blank($expression)) {
             $fail('Expression cannot be empty.');
 
             return;
@@ -38,7 +39,7 @@ class ValidExpression implements ValidationRule
         $functions = $matches[0] ?? [];
 
         foreach ($functions as $function) {
-            if (strtolower($function) !== 'sqrt') {
+            if (Str::lower($function) !== 'sqrt') {
                 $fail('Only sqrt() is supported for named functions.');
 
                 return;

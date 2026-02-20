@@ -3,6 +3,8 @@
 namespace App\Data;
 
 use App\Http\Requests\StoreCalculationRequest;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 class CalculationInputData
 {
@@ -21,9 +23,9 @@ class CalculationInputData
     public static function fromRequest(StoreCalculationRequest $request): self
     {
         $validated = $request->validated();
-        $expression = isset($validated['expression']) ? trim((string) $validated['expression']) : null;
+        $expression = self::nullableTrimmed(Arr::get($validated, 'expression'));
 
-        if ($expression !== null && $expression !== '') {
+        if (filled($expression)) {
             return new self(
                 mode: 'expression',
                 left: null,
@@ -36,11 +38,18 @@ class CalculationInputData
 
         return new self(
             mode: 'simple',
-            left: isset($validated['left']) ? trim((string) $validated['left']) : null,
-            operator: isset($validated['operator']) ? trim((string) $validated['operator']) : null,
-            right: isset($validated['right']) ? trim((string) $validated['right']) : null,
+            left: self::nullableTrimmed(Arr::get($validated, 'left')),
+            operator: self::nullableTrimmed(Arr::get($validated, 'operator')),
+            right: self::nullableTrimmed(Arr::get($validated, 'right')),
             expression: null,
             metadata: ['input_type' => 'simple'],
         );
+    }
+
+    protected static function nullableTrimmed(mixed $value): ?string
+    {
+        $trimmed = Str::of((string) $value)->trim()->toString();
+
+        return filled($trimmed) ? $trimmed : null;
     }
 }

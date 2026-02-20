@@ -10,6 +10,7 @@ use App\Models\Calculation;
 use App\Services\Calculator\CalculationEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Arr;
 
 class CalculationController extends Controller
 {
@@ -61,7 +62,7 @@ class CalculationController extends Controller
     ): JsonResponse {
         if ($data instanceof AnonymousResourceCollection || $data instanceof CalculationResource) {
             $resolved = $data->resolve(request());
-            $data = is_array($resolved) && array_key_exists('data', $resolved) ? $resolved['data'] : $resolved;
+            $data = is_array($resolved) && Arr::exists($resolved, 'data') ? $resolved['data'] : $resolved;
         }
 
         return response()->json([

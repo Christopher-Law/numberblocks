@@ -5,6 +5,8 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 class ValidCalculationPayload implements DataAwareRule, ValidationRule
 {
@@ -30,11 +32,12 @@ class ValidCalculationPayload implements DataAwareRule, ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $hasExpression = isset($this->data['expression']) && trim((string) $this->data['expression']) !== '';
-        $hasSimpleFields = isset($this->data['left'], $this->data['operator'], $this->data['right'])
-            && trim((string) $this->data['left']) !== ''
-            && trim((string) $this->data['operator']) !== ''
-            && trim((string) $this->data['right']) !== '';
+        $expression = Arr::get($this->data, 'expression');
+        $hasExpression = filled(Str::of((string) $expression)->trim()->toString());
+
+        $simpleFields = collect(['left', 'operator', 'right'])
+            ->map(fn (string $field): string => Str::of((string) Arr::get($this->data, $field))->trim()->toString());
+        $hasSimpleFields = $simpleFields->every(fn (string $field): bool => filled($field));
 
         if ($hasExpression && $hasSimpleFields) {
             $fail('Provide either expression mode or simple operand mode, not both.');

@@ -5,6 +5,8 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 class ValidRightOperand implements DataAwareRule, ValidationRule
 {
@@ -30,15 +32,15 @@ class ValidRightOperand implements DataAwareRule, ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $operator = isset($this->data['operator']) ? trim((string) $this->data['operator']) : null;
+        $operator = Str::of((string) Arr::get($this->data, 'operator'))->trim()->toString();
 
         if ($operator !== '/') {
             return;
         }
 
-        $operand = trim((string) $value);
+        $operand = Str::of((string) $value)->trim()->toString();
 
-        if ($operand === '' || preg_match('/^[+-]?0*(?:\.0*)?$/', $operand) === 1) {
+        if (blank($operand) || preg_match('/^[+-]?0*(?:\.0*)?$/', $operand) === 1) {
             $fail('Division by zero is not allowed.');
         }
     }
