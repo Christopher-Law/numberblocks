@@ -187,6 +187,3 @@ Contributions are welcome.
    - `php artisan test --compact`
 5. Open a pull request with a clear summary and test plan.
 
-## License
-
-MIT
