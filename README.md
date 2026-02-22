@@ -1,4 +1,4 @@
-# Numberblocks Calculator API
+# Numberblocks Calculator Application
 
 A Laravel 12 + Inertia (Vue 3) calculator application with:
 
